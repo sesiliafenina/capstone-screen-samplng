@@ -22,7 +22,8 @@ public class Main {
     {
         StringBuilder arr = new StringBuilder();
         int i = 0;
-        while (i<3){
+        // Sample the screen
+        while (i<9){
             arr.append(screenSample(i));
             i++;
         }
@@ -32,7 +33,7 @@ public class Main {
         String content      = arr.toString();
         int qos             = 0;
         //TODO: update your MQTT server IP address here
-        String broker       = "tcp://192.168.255.240:1883";
+        String broker       = "tcp://0.0.0.0:1883";
         String clientId     = "ScreenSample";
         MemoryPersistence persistence = new MemoryPersistence();
 
@@ -43,16 +44,15 @@ public class Main {
             System.out.println("Connecting to broker: "+broker);
             sampleClient.connect(connOpts);
             System.out.println("Connected");
-            // for now use infinite loop
+            // Use infinite loop so the screen sampling code runs until it is stopped
             while(true){
-//                System.out.println(content);
                 MqttMessage message = new MqttMessage(content.getBytes());
                 message.setQos(qos);
                 sampleClient.publish(topic, message);
-                // empty out the array
+                // empty out the array for the next screen sampling result
                 arr.delete(0, arr.length());
                 i = 0;
-                while (i<3){
+                while (i<9){
                     arr.append(screenSample(i));
                     i++;
                 };
@@ -79,34 +79,29 @@ public class Main {
         } catch (AWTException ex) {
             System.err.println(ex);
         }
-//        BufferedImage img = null;
-//        File f;
-//        try
-//        {
-//            f = new File("C:\\Users\\Sesilia Fenina G\\Desktop\\checkered.jpg");
-//            img = ImageIO.read(f);
-//        }
-//        catch(IOException e)
-//        {
-//            System.out.println(e);
-//        }
         Image src = SwingFXUtils.toFXImage(img, null);
 
         // TODO set grid size
+        // for our booth we will use a 3x3 grid so there are 9 sections
         int gridWidth = 3;
         int gridHeight = 3;
 
+        // TODO set ledRow and ledColumn size
+        // for ledRows, the number of rows of LEDs should be the same for all panels because the
+        // height of the panels are all the same
         int ledRows = 3;
+        // for ledColumns, the number of columns of LEDs are different for each panel as the panel
+        // size is different for each side
         int ledColumns;
 
-        if (panel == 0){
-            ledColumns = 21;
+        if (panel % 3 == 0){
+            ledColumns = 52;
         }
-        else if (panel == 1){
+        else if (panel % 3 == 1){
             ledColumns = 32;
         }
         else{
-            ledColumns = 52;
+            ledColumns = 21;
         }
 
 
@@ -120,41 +115,81 @@ public class Main {
 
         // width/gridWidth because we are sampling 1 grid at a time
         // divide by the ledColumns to calculate how many pixels to skip
-        // add 1 to account for the last LED
         int gapWidth = (width/gridWidth)/(ledColumns);
         // same like calculating gapWidth
         int gapHeight= (height/gridHeight)/(ledRows);
 
-//        int counterY = 0;
-        // middle grid
-        for (int y = height/gridHeight; y < 2*(height/gridHeight); y+=gapHeight) {
-//            int counterX = 0;
-            int init;
-            int limit;
+        int height_init;
+        int height_limit;
+        int width_init;
+        int width_limit;
 
-            if (panel == 2){
-                init = 0;
-                limit = width/gridWidth;
-            }
-            else if (panel == 1){
-                init = width/gridWidth;
-                limit = 2*(width/gridWidth);
-            }
-            else{
-                init = 2*(width/gridWidth);
-                limit = 3*(width/gridWidth);
-            }
+        // panel 0 is the first panel the data line goes through. panel 1 is the next panel, etc.
+        if (panel == 0){
+            width_init = 0;
+            width_limit = width/gridWidth;
+            height_init = 0;
+            height_limit = height/gridHeight;
+        }
+        else if (panel == 1){
+            width_init = width/gridWidth;
+            width_limit = 2*(width/gridWidth);
+            height_init = 0;
+            height_limit = height/gridHeight;
+        }
+        else if (panel == 2){
+            width_init = 2*(width/gridWidth);
+            width_limit = 3*(width/gridWidth);
+            height_init = 0;
+            height_limit = height/gridHeight;
+        }
+        else if (panel == 3){
+            width_init = 0;
+            width_limit = width/gridWidth;
+            height_init = height/gridHeight;
+            height_limit = 2*(height/gridHeight);
+        }
+        else if (panel == 4){
+            width_init = width/gridWidth;
+            width_limit = 2*(width/gridWidth);
+            height_init = height/gridHeight;
+            height_limit = 2*(height/gridHeight);
+        }
+        else if (panel == 5){
+            width_init = 2*(width/gridWidth);
+            width_limit = 3*(width/gridWidth);
+            height_init = height/gridHeight;
+            height_limit = 2*(height/gridHeight);
+        }
+        else if (panel == 6){
+            width_init = 0;
+            width_limit = width/gridWidth;
+            height_init = 2*(height/gridHeight);
+            height_limit = 3*(height/gridHeight);
+        }
+        else if (panel == 7){
+            width_init = width/gridWidth;
+            width_limit = 2*(width/gridWidth);
+            height_init = 2*(height/gridHeight);
+            height_limit = 3*(height/gridHeight);
+        }
+        else{
+            width_init = 2*(width/gridWidth);
+            width_limit = 3*(width/gridWidth);
+            height_init = 2*(height/gridHeight);
+            height_limit = 3*(height/gridHeight);
+        }
+
+        for (int y = height_init; y < height_limit; y+=gapHeight) {
             StringBuilder ledStrip = new StringBuilder();
-            for (int x = init; x < limit; x+=gapWidth) {
+            for (int x = width_init; x < width_limit; x+=gapWidth) {
                 // read pixel from source image
                 Color color = reader.getColor(x, y);
                 double red = color.getRed();
                 double blue = color.getBlue();
                 double green = color.getGreen();
-//                System.out.print(red + " ");
-//                System.out.print(blue + " ");
-//                System.out.print(green + "\n");
 
+                // Color adjustment here
                 if (red < 0.35 && blue < 0.35 && green < 0.35){
                     // means that it is dark color
                     red = 0;
@@ -162,82 +197,95 @@ public class Main {
                     green = 0;
                 }
                 else if (red > 0.8 && blue > 0.8 && green > 0.8){
+                    // means that it is light color (white)
                     red = 1;
                     blue = 1;
                     green = 1;
                 }
                 else if (red >= blue && red >= green){
-//                    red *= 0.7;
+                    // means its red so decrease the G and B values
                     blue *= 0.15;
                     green *= 0.15;
                 }
                 else if (blue >= red && blue >= green){
-//                    blue *= 0.7;
                     red *= 0.15;
                     green *= 0.15;
                 }
                 else if (green >= blue && green >= red){
-//                    green *= 2;
                     red *= 0.15;
                     blue *= 0.15;
                 }
+
                 // convert values to 0-255 range
                 int f_red = (int) Math.round((red * 255));
                 int f_blue = (int) Math.round((blue * 255));
                 int f_green= (int) Math.round((green * 255));
 
                 try {
-                    if (panel == 1 || panel == 2) {
-                        int number = f_blue;
-                        int f_blue_new = 0;
-                        while (number != 0) {
-                            int remainder = number % 10;
-                            f_blue_new = f_blue_new * 10 + remainder;
-                            number = number / 10;
-                        }
-                        number = f_red;
-                        int f_red_new = 0;
-                        while (number != 0) {
-                            int remainder = number % 10;
-                            f_red_new = f_red_new * 10 + remainder;
-                            number = number / 10;
-                        }
-                        number = f_green;
-                        int f_green_new = 0;
-                        while (number != 0) {
-                            int remainder = number % 10;
-                            f_green_new = f_green_new * 10 + remainder;
-                            number = number / 10;
-                        }
-                        ledStrip.append(f_blue_new);
-                        ledStrip.append(",");
-                        ledStrip.append(f_green_new);
-                        ledStrip.append(",");
-                        ledStrip.append(f_red_new);
-                        ledStrip.append(":");
-                    }
-                    else{
-                        ledStrip.append(":");
-                        ledStrip.append(f_red);
-                        ledStrip.append(",");
-                        ledStrip.append(f_green);
-                        ledStrip.append(",");
-                        ledStrip.append(f_blue);
-                    }
+                    // The commented lines below are for our prototype booth. If you will be using the prototype booth
+                    // uncomment these lines
+//                    if (panel == 1 || panel == 2) {
+//                        int number = f_blue;
+//                        int f_blue_new = 0;
+//                        while (number != 0) {
+//                            int remainder = number % 10;
+//                            f_blue_new = f_blue_new * 10 + remainder;
+//                            number = number / 10;
+//                        }
+//                        number = f_red;
+//                        int f_red_new = 0;
+//                        while (number != 0) {
+//                            int remainder = number % 10;
+//                            f_red_new = f_red_new * 10 + remainder;
+//                            number = number / 10;
+//                        }
+//                        number = f_green;
+//                        int f_green_new = 0;
+//                        while (number != 0) {
+//                            int remainder = number % 10;
+//                            f_green_new = f_green_new * 10 + remainder;
+//                            number = number / 10;
+//                        }
+//                        ledStrip.append(f_blue_new);
+//                        ledStrip.append(",");
+//                        ledStrip.append(f_green_new);
+//                        ledStrip.append(",");
+//                        ledStrip.append(f_red_new);
+//                        ledStrip.append(":");
+//                    }
+//                    else{
+//                        ledStrip.append(":");
+//                        ledStrip.append(f_red);
+//                        ledStrip.append(",");
+//                        ledStrip.append(f_green);
+//                        ledStrip.append(",");
+//                        ledStrip.append(f_blue);
+//                    }
+                    // If you will be using the above code, comment the append lines below
+                    ledStrip.append(":");
+                    ledStrip.append(f_red);
+                    ledStrip.append(",");
+                    ledStrip.append(f_green);
+                    ledStrip.append(",");
+                    ledStrip.append(f_blue);
                 }
 
                 catch(IndexOutOfBoundsException e) {
                     break;
                 }
             }
-            if (panel == 1 || panel == 2) {
-                ledMatrix.append(ledStrip.reverse());
-            }
-            else{
-                ledMatrix.append(ledStrip);
-            }
+            // for prototype panels
+//            if (panel == 1 || panel == 2) {
+//                ledMatrix.append(ledStrip.reverse());
+//            }
+//            else{
+//                ledMatrix.append(ledStrip);
+//            }
+            // for non-prototype panels
+            ledMatrix.append(ledStrip);
         }
-//        System.out.println(ledMatrix.toString());
+        // UNCOMMENT THE BELOW LINE FOR DEBUGGING
+        // System.out.println(ledMatrix.toString());
         return ledMatrix.toString();
     }
 }
